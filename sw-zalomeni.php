@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Správné zalamování řádků pro ČJ
  * Description: Nahrazuje běžné mezery za pevné mezery v typických českých případech, aby nedocházelo k nevhodnému zalomení řádku.
- * Version: 1.0
+ * Version: 1.1
  * Author: Smart Websites
  * Author URI: https://smart-websites.cz/
  * Update URI: https://github.com/paveltravnicek/sw-zalomeni/
@@ -10,10 +10,6 @@
  */
 
 if (!defined('ABSPATH')) {
-	exit;
-}
-
-if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
@@ -28,7 +24,8 @@ $swUpdateChecker = PucFactory::buildUpdateChecker(
 );
 
 $swUpdateChecker->setBranch('main');
-$swUpdateChecker->getVcsApi()->enableReleaseAssets('/\.zip$/i');
+$swUpdateChecker->getVcsApi()->enableReleaseAssets('/\\.zip$/i');
+
 
 final class SW_Zalomeni_Plugin {
 	const OPTION_GROUP = 'sw_zalomeni_settings_group';
@@ -36,6 +33,14 @@ final class SW_Zalomeni_Plugin {
 	const COMPILED_OPTION = 'sw_zalomeni_compiled_rules';
 	const LEGACY_VERSION_OPTION = 'zalomeni_version';
 	const LEGACY_CUSTOM_TERMS_EXAMPLES = "Formule 1\nWindows \\d\niPhone \\d\niPhone S\\d\niPad \\d\nWii U\nPlayStation \\d\nXBox 360";
+
+	const LICENSE_OPTION = 'sw_zalomeni_plugin_license';
+	const LICENSE_STATUS_OPTION = 'sw_zalomeni_plugin_license_status';
+	const LICENSE_LAST_CHECK_OPTION = 'sw_zalomeni_plugin_license_last_check';
+	const LICENSE_LAST_MESSAGE_OPTION = 'sw_zalomeni_plugin_license_message';
+	const LICENSE_LAST_VALID_TO_OPTION = 'sw_zalomeni_plugin_license_valid_to';
+	const LICENSE_HUB_BASE = 'https://smart-websites.cz';
+	const LICENSE_CHECK_INTERVAL = 43200;
 
 	private static $instance = null;
 
@@ -82,6 +87,8 @@ final class SW_Zalomeni_Plugin {
 	private function __construct() {
 		register_activation_hook(__FILE__, array($this, 'activate'));
 		add_action('plugins_loaded', array($this, 'maybe_migrate_legacy_options'));
+		add_action('admin_init', array($this, 'bootstrap_licence_runtime'));
+		add_action('sw_zalomeni_licence_revalidate_event', array($this, 'maybe_revalidate_plugin_licence'));
 
 		if (is_admin()) {
 			add_action('admin_menu', array($this, 'register_admin_page'));
@@ -107,6 +114,7 @@ final class SW_Zalomeni_Plugin {
 		update_option(self::OPTION_NAME, $settings);
 		$this->compile_and_store_rules($settings);
 		update_option(self::LEGACY_VERSION_OPTION, $this->get_plugin_version());
+		$this->schedule_licence_revalidation();
 	}
 
 	public function maybe_migrate_legacy_options() {
@@ -155,6 +163,10 @@ final class SW_Zalomeni_Plugin {
 	}
 
 	public function register_frontend_filters() {
+		if (!$this->is_plugin_functionality_enabled()) {
+			return;
+		}
+
 		$compiled = get_option(self::COMPILED_OPTION, array());
 		if (empty($compiled['matches']) || empty($compiled['replacements'])) {
 			$this->compile_and_store_rules($this->get_settings());
@@ -378,6 +390,241 @@ final class SW_Zalomeni_Plugin {
 		update_option(self::LEGACY_VERSION_OPTION, $this->get_plugin_version(), false);
 	}
 
+
+	public function bootstrap_licence_runtime() {
+		$this->schedule_licence_revalidation();
+
+		if (is_admin()) {
+			$this->maybe_revalidate_plugin_licence();
+		}
+
+		add_filter('pre_update_option_' . self::OPTION_NAME, array($this, 'prevent_settings_update_when_locked'), 10, 2);
+		add_action('admin_post_sw_zalomeni_save_licence', array($this, 'handle_licence_save'));
+		add_filter('plugin_action_links_' . plugin_basename(__FILE__), array($this, 'protect_deactivate_link'), 20, 1);
+		add_action('admin_init', array($this, 'block_direct_deactivate'));
+	}
+
+	public function schedule_licence_revalidation() {
+		if (!wp_next_scheduled('sw_zalomeni_licence_revalidate_event')) {
+			wp_schedule_event(time() + 600, 'twicedaily', 'sw_zalomeni_licence_revalidate_event');
+		}
+	}
+
+	public function maybe_revalidate_plugin_licence() {
+		if ($this->is_managed_by_sw_guard()) {
+			update_option(self::LICENSE_STATUS_OPTION, 'managed', false);
+			update_option(self::LICENSE_LAST_MESSAGE_OPTION, 'Plugin je provozován v rámci správy webu. Samostatný licenční kód zde není potřeba.', false);
+			update_option(self::LICENSE_LAST_CHECK_OPTION, time(), false);
+			return;
+		}
+
+		$license_key = $this->get_plugin_licence_key();
+		if ($license_key === '') {
+			update_option(self::LICENSE_STATUS_OPTION, 'missing', false);
+			update_option(self::LICENSE_LAST_MESSAGE_OPTION, 'Licenční kód zatím nebyl zadán.', false);
+			return;
+		}
+
+		$last_check = (int) get_option(self::LICENSE_LAST_CHECK_OPTION, 0);
+		if ($last_check > 0 && (time() - $last_check) < self::LICENSE_CHECK_INTERVAL && !isset($_POST['sw_zalomeni_verify_licence'])) {
+			return;
+		}
+
+		$this->validate_plugin_licence($license_key, false);
+	}
+
+	public function handle_licence_save() {
+		if (!current_user_can('manage_options')) {
+			wp_die('Zakázáno.');
+		}
+
+		check_admin_referer('sw_zalomeni_save_licence');
+
+		$license_key = isset($_POST['sw_zalomeni_plugin_license']) ? sanitize_text_field(wp_unslash($_POST['sw_zalomeni_plugin_license'])) : '';
+		update_option(self::LICENSE_OPTION, $license_key, false);
+
+		$this->validate_plugin_licence($license_key, true);
+
+		wp_safe_redirect(admin_url('options-general.php?page=sw-zalomeni'));
+		exit;
+	}
+
+	private function validate_plugin_licence($license_key, $force = false) {
+		if ($this->is_managed_by_sw_guard()) {
+			update_option(self::LICENSE_STATUS_OPTION, 'managed', false);
+			update_option(self::LICENSE_LAST_MESSAGE_OPTION, 'Plugin je provozován v rámci správy webu. Samostatný licenční kód zde není potřeba.', false);
+			update_option(self::LICENSE_LAST_CHECK_OPTION, time(), false);
+			return true;
+		}
+
+		if ($license_key === '') {
+			update_option(self::LICENSE_STATUS_OPTION, 'missing', false);
+			update_option(self::LICENSE_LAST_MESSAGE_OPTION, 'Licenční kód zatím nebyl zadán.', false);
+			update_option(self::LICENSE_LAST_CHECK_OPTION, time(), false);
+			return false;
+		}
+
+		$payload = array(
+			'license_key' => $license_key,
+			'plugin_slug' => 'sw-zalomeni',
+			'site_id'     => $this->get_guard_site_id(),
+			'site_url'    => home_url('/'),
+		);
+
+		$response = wp_remote_post(rtrim(self::LICENSE_HUB_BASE, '/') . '/wp-json/swlic/v2/plugin-license', array(
+			'timeout' => 15,
+			'headers' => array('Content-Type' => 'application/json'),
+			'body'    => wp_json_encode($payload, JSON_UNESCAPED_SLASHES),
+		));
+
+		update_option(self::LICENSE_LAST_CHECK_OPTION, time(), false);
+
+		if (is_wp_error($response)) {
+			update_option(self::LICENSE_STATUS_OPTION, 'error', false);
+			update_option(self::LICENSE_LAST_MESSAGE_OPTION, $response->get_error_message(), false);
+			return false;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code($response);
+		$body = json_decode((string) wp_remote_retrieve_body($response), true);
+		if ($code < 200 || $code >= 300 || !is_array($body)) {
+			update_option(self::LICENSE_STATUS_OPTION, 'error', false);
+			update_option(self::LICENSE_LAST_MESSAGE_OPTION, 'Licenci se nepodařilo ověřit.', false);
+			return false;
+		}
+
+		update_option(self::LICENSE_STATUS_OPTION, sanitize_key((string) ($body['status'] ?? 'error')), false);
+		update_option(self::LICENSE_LAST_MESSAGE_OPTION, sanitize_text_field((string) ($body['message'] ?? '')), false);
+		update_option(self::LICENSE_LAST_VALID_TO_OPTION, sanitize_text_field((string) ($body['valid_to'] ?? '')), false);
+
+		return !empty($body['ok']);
+	}
+
+	private function is_managed_by_sw_guard() {
+		return function_exists('sw_guard_get_management_status') && sw_guard_get_management_status() === 'ACTIVE';
+	}
+
+	private function is_plugin_functionality_enabled() {
+		if ($this->is_managed_by_sw_guard()) {
+			return true;
+		}
+
+		return $this->get_plugin_licence_status() === 'active';
+	}
+
+	private function can_edit_plugin_settings() {
+		return $this->is_plugin_functionality_enabled();
+	}
+
+	public function prevent_settings_update_when_locked($value, $old_value) {
+		if ($this->can_edit_plugin_settings()) {
+			return $value;
+		}
+
+		return $old_value;
+	}
+
+	public function protect_deactivate_link($links) {
+		if ($this->is_managed_by_sw_guard()) {
+			unset($links['deactivate']);
+		}
+		return $links;
+	}
+
+	public function block_direct_deactivate() {
+		if (!$this->is_managed_by_sw_guard()) {
+			return;
+		}
+
+		$action = isset($_GET['action']) ? sanitize_key((string) $_GET['action']) : '';
+		$plugin = isset($_GET['plugin']) ? sanitize_text_field((string) $_GET['plugin']) : '';
+		if ($action === 'deactivate' && $plugin === plugin_basename(__FILE__)) {
+			wp_die('Tento plugin nelze deaktivovat při aktivní správě webu.', 'Chráněný plugin', array('response' => 403));
+		}
+	}
+
+	private function get_guard_site_id() {
+		if (defined('SW_Guard_V2::OPT_SITE_ID')) {
+			return (string) get_option(SW_Guard_V2::OPT_SITE_ID, '');
+		}
+		return (string) get_option('swlic_site_id', '');
+	}
+
+	private function get_plugin_licence_key() {
+		return trim((string) get_option(self::LICENSE_OPTION, ''));
+	}
+
+	private function get_plugin_licence_status() {
+		$status = (string) get_option(self::LICENSE_STATUS_OPTION, 'missing');
+		return in_array($status, array('active', 'managed', 'expired', 'disabled', 'inactive', 'missing', 'error', 'invalid_plugin', 'invalid_type', 'bound_elsewhere'), true) ? $status : 'missing';
+	}
+
+	private function get_licence_status_label($status) {
+		$map = array(
+			'managed' => 'Správa webu',
+			'active' => 'Platná',
+			'expired' => 'Vypršela',
+			'disabled' => 'Pozastavená',
+			'inactive' => 'Neaktivní',
+			'missing' => 'Nezadána',
+			'error' => 'Chyba ověření',
+			'invalid_plugin' => 'Nesoulad pluginu',
+			'invalid_type' => 'Neplatný typ',
+			'bound_elsewhere' => 'Přiřazena jinam',
+		);
+
+		return $map[$status] ?? ucfirst($status);
+	}
+
+	private function render_licence_box() {
+		$status = $this->get_plugin_licence_status();
+		$message = (string) get_option(self::LICENSE_LAST_MESSAGE_OPTION, '');
+		$last_check = (int) get_option(self::LICENSE_LAST_CHECK_OPTION, 0);
+		$valid_to = (string) get_option(self::LICENSE_LAST_VALID_TO_OPTION, '');
+		$license_key = $this->get_plugin_licence_key();
+		$is_managed = $this->is_managed_by_sw_guard();
+		$is_locked = !$this->can_edit_plugin_settings();
+		?>
+		<div class="swz-card swz-card--full">
+			<h2><?php echo esc_html__('Licence pluginu', 'sw-zalomeni'); ?></h2>
+			<div class="swg-status" style="margin-bottom:20px;">
+				<strong><?php echo esc_html__('Stav licence:', 'sw-zalomeni'); ?></strong>
+				<?php echo esc_html($this->get_licence_status_label($status)); ?>
+			</div>
+			<?php if ($message !== '') : ?>
+				<p><?php echo esc_html($message); ?></p>
+			<?php endif; ?>
+			<?php if ($valid_to !== '' && !$is_managed) : ?>
+				<p><strong><?php echo esc_html__('Platnost do:', 'sw-zalomeni'); ?></strong> <?php echo esc_html($valid_to); ?></p>
+			<?php endif; ?>
+			<?php if ($last_check > 0) : ?>
+				<p><strong><?php echo esc_html__('Poslední ověření:', 'sw-zalomeni'); ?></strong> <?php echo esc_html(wp_date('j. n. Y H:i:s', $last_check)); ?></p>
+			<?php endif; ?>
+
+			<?php if ($is_managed) : ?>
+				<p><?php echo esc_html__('Plugin je provozován v rámci správy webu. Samostatný licenční kód zde není potřeba.', 'sw-zalomeni'); ?></p>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+					<?php wp_nonce_field('sw_zalomeni_save_licence'); ?>
+					<input type="hidden" name="action" value="sw_zalomeni_save_licence">
+					<p>
+						<label for="sw_zalomeni_plugin_license"><strong><?php echo esc_html__('Licenční kód', 'sw-zalomeni'); ?></strong></label><br>
+						<input type="text" id="sw_zalomeni_plugin_license" name="sw_zalomeni_plugin_license" value="<?php echo esc_attr($license_key); ?>" class="regular-text" style="min-width:320px;" />
+					</p>
+					<p>
+						<button type="submit" name="sw_zalomeni_verify_licence" class="button button-primary"><?php echo esc_html__('Uložit a ověřit licenci', 'sw-zalomeni'); ?></button>
+					</p>
+				</form>
+			<?php endif; ?>
+
+			<?php if ($is_locked) : ?>
+				<p class="description"><?php echo esc_html__('Nastavení pluginu je v tomto stavu pouze pro čtení a zalamování se neaplikuje.', 'sw-zalomeni'); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+
 	public function render_admin_page() {
 		if (!current_user_can('manage_options')) {
 			return;
@@ -401,6 +648,7 @@ final class SW_Zalomeni_Plugin {
 			</div>
 			<form method="post" action="options.php" class="swz-form">
 				<?php settings_fields(self::OPTION_GROUP); ?>
+				<fieldset <?php disabled(!$this->can_edit_plugin_settings()); ?>>
 
 				<div class="swz-grid">
 					<div class="swz-card">
@@ -439,10 +687,14 @@ final class SW_Zalomeni_Plugin {
 
 				</div>
 
+				</fieldset>
+
 				<div class="swz-actions">
-					<?php submit_button(__('Uložit nastavení', 'sw-zalomeni'), 'primary', 'submit', false); ?>
+					<?php submit_button(__('Uložit nastavení', 'sw-zalomeni'), 'primary', 'submit', false, array('disabled' => !$this->can_edit_plugin_settings())); ?>
 				</div>
 			</form>
+
+			<?php $this->render_licence_box(); ?>
 		</div>
 		<?php
 	}
