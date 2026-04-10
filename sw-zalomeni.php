@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Správné zalamování řádků pro ČJ
  * Description: Nahrazuje běžné mezery za pevné mezery v typických českých případech, aby nedocházelo k nevhodnému zalomení řádku.
- * Version: 1.0
+ * Version: 1.1
  * Author: Smart Websites
  * Author URI: https://smart-websites.cz/
  * Update URI: https://github.com/paveltravnicek/sw-zalomeni/
