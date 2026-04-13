@@ -501,7 +501,7 @@ XBox 360";
 				<div class="swz-hero__content">
 					<span class="swz-badge"><?php echo esc_html__('Smart Websites', 'sw-zalomeni'); ?></span>
 					<h1><?php echo esc_html__('Správné zalamování řádků pro ČJ', 'sw-zalomeni'); ?></h1>
-					<p><?php echo esc_html__('Nahrazuje běžné mezery za pevné mezery v typických českých případech, aby nedocházelo k nevhodnému zalomení řádku.', 'sw-zalomeni'); ?></p>
+					<p><?php echo esc_html__('Nahrazuje běžné mezery za pevné mezery v&nbsp;typických českých případech, aby nedocházelo k&nbsp;nevhodnému zalomení řádku.', 'sw-zalomeni'); ?></p>
 				</div>
 				<div class="swz-hero__meta">
 					<div class="swz-stat">
