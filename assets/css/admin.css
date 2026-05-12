@@ -1,297 +1,288 @@
-/* Smart Websites – Zalomení admin */
+/* Smart Websites – Zalomení admin v3.0 */
+
+/* ─── Wrap ───────────────────────────────────────── */
 .sw-zalomeni-admin {
 	max-width: none;
-	width: auto;
-	margin: 24px 20px 0 0;
-	padding-bottom: 1px;
+	margin: 0 20px 0 0;
+	padding: 0 0 48px;
 	box-sizing: border-box;
 }
 
+/* ─── Hero ───────────────────────────────────────── */
 .swz-hero {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: flex-start;
 	justify-content: space-between;
-	gap: 24px;
-	padding: 30px;
-	border-radius: 28px;
-	background: linear-gradient(90deg, #04478A 0%, #0096E2 100%);
+	gap: 20px;
+	padding: 32px 32px 36px;
+	background: linear-gradient(120deg, #03366e 0%, #0576b5 60%, #0096E2 100%);
 	color: #fff;
-	box-shadow: 0 18px 40px rgba(4, 71, 138, 0.18);
-	margin-bottom: 22px;
+	position: relative;
+	overflow: hidden;
+	margin-bottom: 0;
+}
+
+.swz-hero::after {
+	content: '';
+	position: absolute;
+	right: -60px;
+	top: -60px;
+	width: 320px;
+	height: 320px;
+	border-radius: 50%;
+	background: rgba(255,255,255,0.05);
+	pointer-events: none;
 }
 
 .swz-hero__content {
-	flex: 1 1 640px;
+	flex: 1 1 400px;
 	min-width: 0;
+	position: relative;
+	z-index: 1;
 }
 
 .swz-badge {
 	display: inline-flex;
 	align-items: center;
-	gap: 8px;
-	padding: 7px 14px;
+	gap: 6px;
+	background: rgba(255,255,255,0.15);
+	border: 1px solid rgba(255,255,255,0.22);
+	padding: 4px 12px;
 	border-radius: 999px;
-	background: rgba(255, 255, 255, 0.16);
-	font-size: 12px;
+	font-size: 11px;
 	font-weight: 700;
-	letter-spacing: .04em;
+	letter-spacing: .06em;
 	text-transform: uppercase;
-	margin-bottom: 18px;
+	color: rgba(255,255,255,0.9);
+	margin-bottom: 14px;
 }
 
 .swz-hero h1 {
 	color: #fff;
-	font-size: 42px;
-	line-height: 1.08;
-	margin: 0 0 14px;
+	font-size: 36px;
+	font-weight: 800;
+	line-height: 1.1;
+	margin: 0 0 12px;
+	letter-spacing: -.02em;
 }
 
 .swz-hero p {
 	margin: 0;
-	font-size: 0.9rem;
-	line-height: 1.2;
-	max-width: 72ch;
-	color: rgba(255, 255, 255, 0.94);
+	font-size: 14px;
+	line-height: 1.5;
+	max-width: 60ch;
+	color: rgba(255,255,255,0.78);
 }
 
 .swz-hero__meta {
-	flex: 0 0 220px;
+	flex: 0 0 auto;
 	display: flex;
-	align-items: flex-start;
-	justify-content: flex-end;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 10px;
+	position: relative;
+	z-index: 1;
 }
 
 .swz-stat {
-	min-width: 220px;
-	padding: 18px 20px;
-	border-radius: 20px;
-	background: rgba(255, 255, 255, 0.14);
-	backdrop-filter: blur(8px);
-	text-align: left;
+	background: rgba(255,255,255,0.13);
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 14px;
+	padding: 12px 18px;
+	text-align: right;
+	min-width: 130px;
 }
 
 .swz-stat strong {
 	display: block;
-	font-size: 24px;
+	font-size: 22px;
+	font-weight: 800;
 	color: #fff;
+	line-height: 1;
 }
 
 .swz-stat span {
 	display: block;
-	margin-top: 4px;
-	color: rgba(255, 255, 255, 0.9);
+	font-size: 11px;
+	color: rgba(255,255,255,0.65);
+	margin-top: 3px;
+	text-transform: uppercase;
+	letter-spacing: .05em;
 }
 
-.sw-zalomeni-admin .notice {
-	background: #111111;
-	border: 1px solid #111111;
-	border-left-width: 4px;
-	padding: 15px;
-	border-radius: 15px;
-	color: #ffffff;
-	box-sizing: border-box;
+.swz-hero-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	border-radius: 999px;
+	padding: 5px 12px 5px 8px;
+	font-size: 12px;
+	font-weight: 700;
+	color: #fff;
+}
+
+.swz-hero-status--active {
+	background: #16a34a;
+}
+
+.swz-hero-status--inactive {
+	background: rgba(255,255,255,0.18);
+	border: 1px solid rgba(255,255,255,0.25);
+}
+
+.swz-hero-status__dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #86efac;
+	flex-shrink: 0;
+}
+
+.swz-hero-status--inactive .swz-hero-status__dot {
+	background: rgba(255,255,255,0.5);
+}
+
+/* ─── Notices area ───────────────────────────────── */
+.swz-notices-area {
+	padding: 16px 32px 0;
+	margin-top: 16px;
+}
+
+.swz-notices-area:empty {
+	display: none;
+}
+
+/* Styly aplikujeme na úrovni celého .wrap wrapperu –
+   WP notices jsou renderovány těsně po .wrap h2, takže
+   .sw-zalomeni-admin .notice je správný selektor */
+.sw-zalomeni-admin .notice,
+.sw-zalomeni-admin div.updated,
+.sw-zalomeni-admin div.error {
+	background: rgba(0, 0, 0, 0.18) !important;
+	color: #ffffff !important;
+	border: 1px solid rgba(255, 255, 255, 0.25) !important;
+	border-left-width: 5px !important;
+	border-radius: 12px !important;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06) !important;
+	margin: 0 0 20px !important;
+	padding: 12px 16px !important;
+}
+
+.sw-zalomeni-admin .notice p,
+.sw-zalomeni-admin div.updated p,
+.sw-zalomeni-admin div.error p {
+	color: #ffffff !important;
+	margin: 0 !important;
+	font-size: 13px !important;
+}
+
+.sw-zalomeni-admin .notice a,
+.sw-zalomeni-admin div.updated a {
+	color: #bfdbfe !important;
 }
 
 .sw-zalomeni-admin .notice-success,
 .sw-zalomeni-admin .updated {
-	border-left-color: #00a32a;
+	border-left-color: #4ade80 !important;
+}
+
+.sw-zalomeni-admin .notice-warning {
+	border-left-color: #fbbf24 !important;
 }
 
 .sw-zalomeni-admin .notice-error,
 .sw-zalomeni-admin .error {
-	border-left-color: #d63638;
-}
-
-.sw-zalomeni-admin .notice-warning {
-	border-left-color: #dba617;
+	border-left-color: #f87171 !important;
 }
 
 .sw-zalomeni-admin .notice-info {
-	border-left-color: #72aee6;
+	border-left-color: #60a5fa !important;
 }
 
-.sw-zalomeni-admin .notice a {
-	color: #ffffff;
+/* Notices uvnitř swz-notices-area (naše vlastní, pod hero) –
+   ty chceme světlé na bílém pozadí stránky */
+.swz-notices-area .notice,
+.swz-notices-area div.updated,
+.swz-notices-area div.error {
+	background: #ffffff !important;
+	color: #1e293b !important;
+	border: 1px solid #e2e8f0 !important;
+	border-left-width: 4px !important;
+	border-radius: 12px !important;
+	box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06) !important;
+	margin: 0 0 10px !important;
+	padding: 12px 16px !important;
 }
 
-.sw-zalomeni-admin .notice p {
-	margin: 0;
-	color: #ffffff;
+.swz-notices-area .notice p,
+.swz-notices-area div.updated p,
+.swz-notices-area div.error p {
+	color: #1e293b !important;
+	margin: 0 !important;
+	font-size: 13px !important;
 }
 
-.swz-grid {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 18px;
+.swz-notices-area .notice-success,
+.swz-notices-area .updated {
+	border-left-color: #16a34a !important;
 }
 
-.swz-card {
-	padding: 24px;
-	border-radius: 20px;
-	background: #fff;
-	border: 1px solid #dbe5f1;
-	box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+.swz-notices-area .notice-warning {
+	border-left-color: #d97706 !important;
 }
 
-.swz-card--full {
-	grid-column: 1 / -1;
+.swz-notices-area .notice-error,
+.swz-notices-area .error {
+	border-left-color: #dc2626 !important;
 }
 
-.swz-card h2 {
-	margin-top: 0;
-	margin-bottom: 8px;
-	font-size: 22px;
-	line-height: 1.25;
+.swz-notices-area .notice-info {
+	border-left-color: #0576b5 !important;
 }
 
-.swz-intro {
-	margin-top: 0;
-	margin-bottom: 18px;
-	color: #475569;
+/* ─── Hlavní obsah ───────────────────────────────── */
+.swz-main-content {
+	padding: 20px 32px 0;
 }
 
-.swz-field + .swz-field {
-	margin-top: 14px;
-}
-
-.swz-field--list {
-	padding-left: 30px;
-}
-
-.swz-toggle {
-	display: inline-flex;
-	align-items: center;
-	gap: 10px;
-	font-weight: 600;
-	font-size: 15px;
-}
-
-.swz-toggle input[type="checkbox"] {
-	margin: 0;
-}
-
-.swz-field .description {
-	margin: 6px 0 0;
-	color: #64748b;
-}
-
-.swz-field input[type="text"],
-.swz-card textarea {
-	width: 100%;
-	max-width: 100%;
-}
-
-.swz-actions {
-	margin-top: 22px;
-}
-
-@media (max-width: 960px) {
-	.sw-zalomeni-admin {
-		margin-right: 12px;
-	}
-
-	.swz-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.swz-hero {
-		padding: 22px;
-		flex-direction: column;
-		align-items: stretch;
-	}
-
-	.swz-hero__content {
-		flex: 1 1 auto;
-		width: 100%;
-	}
-
-	.swz-hero h1 {
-		font-size: 34px;
-	}
-
-	.swz-hero__meta {
-		flex: 1 1 auto;
-		width: 100%;
-		justify-content: flex-start;
-	}
-
-	.swz-stat {
-		min-width: 0;
-		width: 100%;
-	}
-}
-
-@media (max-width: 782px) {
-	.sw-zalomeni-admin {
-		margin: 16px 10px 0 0;
-	}
-
-	.swz-hero {
-		padding: 20px;
-		border-radius: 24px;
-	}
-
-	.swz-badge {
-		margin-bottom: 16px;
-	}
-
-	.swz-hero h1 {
-		font-size: 1.8rem;
-		line-height: 1.15;
-		margin-bottom: 12px;
-	}
-
-	.swz-hero__meta {
-		margin-top: 8px;
-	}
-
-	.swz-stat {
-		padding: 16px 18px;
-		border-radius: 18px;
-	}
-
-	.swz-card {
-		padding: 20px;
-	}
-}
-
-.swz-notices:empty {
-	display: none;
-}
-
-.swz-notices {
-	margin: 0 0 24px;
-}
-
-.swz-notices .notice,
-.swz-notices div.updated,
-.swz-notices div.error,
-.swz-notices div.notice,
-.swz-notices div.is-dismissible {
-	margin: 0 0 12px;
-}
-
-.swz-card textarea::placeholder {
-	color: #94a3b8;
-}
+/* ─── Licence panel ──────────────────────────────── */
 .swz-card--licence {
-	margin-bottom: 18px;
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 18px;
+	overflow: hidden;
+	margin-bottom: 20px;
+	box-shadow: 0 1px 6px rgba(15,23,42,0.06);
 }
 
 .swz-card__head {
 	display: flex;
 	justify-content: space-between;
-	align-items: flex-start;
+	align-items: center;
+	padding: 20px 22px 16px;
+	border-bottom: 1px solid #f1f5f9;
 	gap: 16px;
-	margin-bottom: 18px;
+}
+
+.swz-card__head h2 {
+	font-size: 16px;
+	font-weight: 700;
+	color: #0f172a;
+	margin: 0 0 3px;
+}
+
+.swz-card__head .swz-intro {
+	margin: 0;
+	font-size: 12px;
+	color: #94a3b8;
 }
 
 .swz-licence-badge {
+	flex-shrink: 0;
 	display: inline-flex;
 	align-items: center;
-	justify-content: center;
-	padding: 8px 14px;
+	padding: 5px 14px;
 	border-radius: 999px;
 	font-size: 12px;
 	font-weight: 700;
@@ -299,88 +290,519 @@
 }
 
 .swz-licence-badge--active {
-	background: #ecfdf3;
-	color: #027a48;
+	background: #dcfce7;
+	color: #15803d;
 }
 
 .swz-licence-badge--inactive {
-	background: #fef3f2;
-	color: #b42318;
+	background: #fee2e2;
+	color: #b91c1c;
 }
 
 .swz-licence-grid {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 14px;
+	border-bottom: 1px solid #f1f5f9;
 }
 
 .swz-licence-item {
-	padding: 16px;
-	border-radius: 16px;
-	background: #f8fafc;
-	border: 1px solid #e2e8f0;
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
+	padding: 16px 22px;
+	border-right: 1px solid #f1f5f9;
 }
 
-.swz-licence-item strong {
-	font-size: 16px;
-	line-height: 1.35;
-	color: #0f172a;
-}
-
-.swz-licence-item span {
-	color: #475569;
+.swz-licence-item:last-child {
+	border-right: none;
 }
 
 .swz-licence-label {
-	font-size: 12px;
+	font-size: 10px;
 	font-weight: 700;
-	letter-spacing: .03em;
+	letter-spacing: .06em;
 	text-transform: uppercase;
+	color: #94a3b8;
+	display: block;
+	margin-bottom: 6px;
+}
+
+.swz-licence-item strong {
+	display: block;
+	font-size: 15px;
+	font-weight: 700;
+	color: #0f172a;
+	margin-bottom: 2px;
+}
+
+.swz-licence-item span {
+	font-size: 12px;
 	color: #64748b;
 }
 
 .swz-license-form-wrap {
-	margin-top: 18px;
-	padding-top: 18px;
-	border-top: 1px solid #e2e8f0;
+	padding: 18px 22px;
+	background: #fafcff;
+	border-top: 1px solid #f1f5f9;
 }
 
 .swz-license-form {
 	display: grid;
-	gap: 10px;
-	max-width: 720px;
+	gap: 8px;
+	max-width: 520px;
+}
+
+.swz-license-form label {
+	font-size: 13px;
+	font-weight: 600;
+	color: #374151;
+}
+
+.swz-license-form input[type="text"] {
+	border-radius: 9px !important;
+	border-color: #e2e8f0 !important;
+	font-size: 13px;
+	height: 36px;
 }
 
 .swz-license-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 10px;
+	gap: 8px;
 	align-items: center;
+	margin-top: 4px;
 }
 
 .swz-note {
-	margin-top: 18px;
-	padding: 14px 16px;
-	border-radius: 14px;
-	background: #f8fafc;
+	font-size: 12px;
+	color: #64748b;
+}
+
+/* ─── Settings grid ──────────────────────────────── */
+.swz-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.swz-card {
+	background: #fff;
 	border: 1px solid #e2e8f0;
-	color: #475569;
+	border-radius: 18px;
+	padding: 22px;
+	box-shadow: 0 1px 4px rgba(15,23,42,0.05);
+}
+
+.swz-card--full {
+	grid-column: 1 / -1;
+}
+
+.swz-card h2 {
+	font-size: 15px;
+	font-weight: 700;
+	color: #0f172a;
+	margin: 0 0 4px;
+}
+
+.swz-intro {
+	margin: 0 0 16px;
+	font-size: 12px;
+	color: #94a3b8;
+	line-height: 1.5;
+}
+
+/* ─── Toggle switch ──────────────────────────────── */
+.swz-field {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px 0;
+	border-bottom: 1px solid #f8fafc;
+}
+
+.swz-field:last-child {
+	border-bottom: none;
+	padding-bottom: 0;
+}
+
+.swz-field:first-child {
+	padding-top: 0;
+}
+
+.swz-field--list {
+	display: block;
+	padding: 0 0 12px 46px;
+	border-bottom: 1px solid #f8fafc;
+}
+
+.swz-field--list input[type="text"] {
+	width: 100%;
+	border-radius: 9px !important;
+	border-color: #e2e8f0 !important;
+	font-size: 12px;
+	height: 32px;
+	box-sizing: border-box;
+	margin-bottom: 4px;
+}
+
+.swz-field--list .description {
+	font-size: 11px;
+	color: #94a3b8;
+	margin: 0;
+}
+
+/* Toggle track + knob – pure CSS, žádný JS pro vizuál */
+.swz-toggle-wrap {
+	position: relative;
+	flex-shrink: 0;
+	margin-top: 1px;
+	width: 34px;
+	height: 20px;
+}
+
+.swz-toggle-wrap input[type="checkbox"] {
+	position: absolute;
+	opacity: 0;
+	width: 34px;
+	height: 20px;
+	margin: 0;
+	cursor: pointer;
+	z-index: 1;
+	top: 0;
+	left: 0;
+}
+
+.swz-toggle-track {
+	display: block;
+	width: 34px;
+	height: 20px;
+	border-radius: 999px;
+	background: #e2e8f0;
+	transition: background .15s ease;
+	position: relative;
+	pointer-events: none;
+}
+
+.swz-toggle-track::after {
+	content: '';
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+	transition: transform .15s ease;
+}
+
+.swz-toggle-wrap input:checked ~ .swz-toggle-track {
+	background: #0576b5;
+}
+
+.swz-toggle-wrap input:checked ~ .swz-toggle-track::after {
+	transform: translateX(14px);
+}
+
+.swz-toggle-wrap input:focus-visible ~ .swz-toggle-track {
+	outline: 2px solid #0576b5;
+	outline-offset: 2px;
+}
+
+/* Původní label – nyní obaluje toggle-wrap + __body */
+.swz-toggle {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	width: 100%;
+	cursor: pointer;
+}
+
+.swz-toggle__label {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1e293b;
+	line-height: 1.4;
+}
+
+.swz-field__body {
+	flex: 1;
+	min-width: 0;
+}
+
+.swz-field .description {
+	font-size: 12px;
+	color: #94a3b8;
+	margin: 2px 0 0;
+	line-height: 1.4;
+}
+
+/* Textarea */
+.swz-card textarea {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	border-radius: 10px !important;
+	border-color: #e2e8f0 !important;
+	font-size: 12px;
+	resize: vertical;
+}
+
+.swz-card textarea::placeholder {
+	color: #cbd5e1;
+}
+
+/* ─── Save row ───────────────────────────────────── */
+.swz-actions {
+	margin-top: 20px;
+	display: flex;
+	align-items: center;
+	gap: 14px;
 }
 
 .swz-form.is-readonly {
-	opacity: 0.78;
+	opacity: 0.65;
+	pointer-events: none;
+}
+
+/* ─── Responzivita ───────────────────────────────── */
+
+/* ─── Live preview ───────────────────────────────── */
+.swz-card--preview .swz-preview-wrap {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	margin-top: 4px;
+}
+
+.swz-preview-label {
+	display: block;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .05em;
+	text-transform: uppercase;
+	color: #94a3b8;
+	margin-bottom: 8px;
+}
+
+.swz-card--preview textarea {
+	height: 120px;
+	resize: vertical;
+}
+
+.swz-preview-output {
+	min-height: 120px;
+	padding: 10px 12px;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	background: #f8fafc;
+	font-size: 13px;
+	line-height: 1.6;
+	color: #1e293b;
+	word-break: break-word;
+	box-sizing: border-box;
+}
+
+.swz-preview-placeholder {
+	color: #cbd5e1;
+}
+
+.swz-preview-status {
+	margin-top: 10px;
+	font-size: 12px;
+	color: #94a3b8;
+	min-height: 18px;
+}
+
+.swz-preview-status--changed {
+	color: #0576b5;
+	font-weight: 600;
+}
+
+.swz-preview-status--ok {
+	color: #16a34a;
+}
+
+.swz-preview-status--loading {
+	color: #94a3b8;
+}
+
+mark.swz-nbsp {
+	background: #dbeafe;
+	color: #1d4ed8;
+	border-radius: 3px;
+	padding: 0 2px;
+	font-style: normal;
+	font-size: 11px;
+}
+
+/* ─── swz-field--text (CSS class input) ─────────── */
+.swz-field--text {
+	flex-direction: column;
+	gap: 0;
+	border-bottom: none;
+	padding-bottom: 0;
+}
+
+.swz-field--text input[type="text"] {
+	margin-top: 6px;
+	width: 100%;
+	border-radius: 9px !important;
+	border-color: #e2e8f0 !important;
+	font-size: 13px;
+	box-sizing: border-box;
 }
 
 @media (max-width: 960px) {
+	.swz-hero {
+		padding: 22px 18px 26px;
+	}
+
+	.swz-main-content,
+	.swz-notices-area {
+		padding-left: 18px;
+		padding-right: 18px;
+	}
+
+	.swz-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.swz-card--preview .swz-preview-wrap {
+		grid-template-columns: 1fr;
+	}
+
 	.swz-licence-grid {
 		grid-template-columns: 1fr;
 	}
 
-	.swz-card__head {
+	.swz-licence-item {
+		border-right: none;
+		border-bottom: 1px solid #f1f5f9;
+		padding: 14px 22px;
+	}
+
+	.swz-licence-item:last-child {
+		border-bottom: none;
+	}
+}
+
+@media (max-width: 782px) {
+	.sw-zalomeni-admin {
+		margin-right: 10px;
+	}
+
+	.swz-hero {
+		padding: 20px 18px 24px;
 		flex-direction: column;
-		align-items: stretch;
+		gap: 16px;
+	}
+
+	.swz-hero h1 {
+		font-size: 24px;
+	}
+
+	.swz-hero__content {
+		flex: 1 1 auto;
+		width: 100%;
+	}
+
+	/* Meta jde pod content, ale jako řada vedle sebe */
+	.swz-hero__meta {
+		flex-direction: row;
+		align-items: center;
+		width: 100%;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.swz-stat {
+		flex: 1;
+		text-align: left;
+		min-width: 0;
+		padding: 10px 14px;
+	}
+
+	.swz-stat strong {
+		font-size: 18px;
+	}
+
+	.swz-hero-status {
+		flex-shrink: 0;
+	}
+
+	.swz-main-content,
+	.swz-notices-area {
+		padding-left: 18px;
+		padding-right: 18px;
+	}
+
+	.swz-card {
+		padding: 18px;
+		border-radius: 14px;
+	}
+
+	.swz-card--licence {
+		border-radius: 14px;
+	}
+
+	.swz-card__head {
+		padding: 16px 18px 14px;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 10px;
+	}
+
+	.swz-licence-item {
+		padding: 12px 18px;
+	}
+
+	.swz-license-form-wrap {
+		padding: 16px 18px;
+	}
+}
+
+@media (max-width: 600px) {
+	.swz-hero {
+		padding: 18px 16px 20px;
+	}
+
+	.swz-hero h1 {
+		font-size: 20px;
+		margin-bottom: 8px;
+	}
+
+	.swz-badge {
+		font-size: 10px;
+		padding: 3px 10px;
+		margin-bottom: 10px;
+	}
+
+	.swz-main-content,
+	.swz-notices-area {
+		padding-left: 16px;
+		padding-right: 16px;
+	}
+
+	.swz-hero__meta {
+		gap: 8px;
+	}
+
+	.swz-stat {
+		padding: 8px 12px;
+	}
+
+	.swz-stat strong {
+		font-size: 16px;
+	}
+
+	.swz-stat span {
+		font-size: 10px;
+	}
+
+	.swz-grid {
+		gap: 12px;
+	}
+
+	.swz-card {
+		padding: 16px;
 	}
 }
