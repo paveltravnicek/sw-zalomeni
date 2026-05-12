@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Správné zalamování řádků pro ČJ
  * Description: Nahrazuje běžné mezery za pevné mezery v typických českých případech, aby nedocházelo k nevhodnému zalomení řádku.
- * Version: 1.0
+ * Version: 1.1
  * Author: Smart Websites
  * Author URI: https://smart-websites.cz/
  * Update URI: https://github.com/paveltravnicek/sw-zalomeni/
@@ -15,19 +15,6 @@
 if (!defined('ABSPATH')) {
 	exit;
 }
-
-require __DIR__ . '/plugin-update-checker/plugin-update-checker.php';
-
-use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
-
-$swUpdateChecker = PucFactory::buildUpdateChecker(
-	'https://github.com/paveltravnicek/sw-zalomeni/',
-	__FILE__,
-	'sw-zalomeni'
-);
-
-$swUpdateChecker->setBranch('main');
-$swUpdateChecker->getVcsApi()->enableReleaseAssets('/\\.zip$/i');
 
 final class SW_Zalomeni_Plugin {
 	const OPTION_GROUP = 'sw_zalomeni_settings_group';
@@ -62,6 +49,14 @@ XBox 360";
 		'space_between_numbers'           => 'on',
 		'space_after_ordered_number'      => 'on',
 		'custom_terms'                    => '',
+		// Typografické znaky
+		'czech_quotes'                    => 'on',
+		'em_dash'                         => 'on',
+		'ellipsis'                        => 'on',
+		'paragraph_sign'                  => 'on',
+		// Pokročilé
+		'apply_to_shortcodes'             => '',
+		'skip_css_class'                  => 'no-zalomeni',
 	);
 
 	private $default_filters = array(
@@ -104,6 +99,7 @@ XBox 360";
 			add_action('admin_post_sw_zalomeni_remove_license', array($this, 'handle_remove_license'));
 			add_action('admin_init', array($this, 'maybe_refresh_plugin_license'));
 			add_action('admin_init', array($this, 'block_direct_deactivate'));
+			add_action('wp_ajax_sw_zalomeni_preview', array($this, 'handle_ajax_preview'));
 		} else {
 			add_action('init', array($this, 'register_frontend_filters'));
 		}
@@ -271,6 +267,12 @@ XBox 360";
 		foreach ($filters as $filter) {
 			add_filter($filter, array($this, 'texturize'), 10, 1);
 		}
+
+		// Shortcody – aplikovat texturize i na výstup shortcodů
+		$settings = $this->get_settings();
+		if ('on' === ($settings['apply_to_shortcodes'] ?? '')) {
+			add_filter('do_shortcode_tag', array($this, 'texturize'), 10, 1);
+		}
 	}
 
 	public function add_plugin_action_links($links) {
@@ -308,6 +310,11 @@ XBox 360";
 			$this->get_plugin_version(),
 			true
 		);
+
+		wp_localize_script('sw-zalomeni-admin', 'swzAdmin', array(
+			'ajaxUrl' => admin_url('admin-ajax.php'),
+			'nonce'   => wp_create_nonce('sw_zalomeni_preview'),
+		));
 	}
 
 	public function register_settings() {
@@ -334,6 +341,11 @@ XBox 360";
 			'spaces_in_scales',
 			'space_between_numbers',
 			'space_after_ordered_number',
+			'czech_quotes',
+			'em_dash',
+			'ellipsis',
+			'paragraph_sign',
+			'apply_to_shortcodes',
 		);
 
 		foreach ($checkboxes as $key) {
@@ -364,6 +376,9 @@ XBox 360";
 			return '' !== trim($line);
 		})));
 		$output['custom_terms'] = $custom_terms;
+
+		$skip_class = isset($input['skip_css_class']) ? wp_unslash($input['skip_css_class']) : $this->default_settings['skip_css_class'];
+		$output['skip_css_class'] = sanitize_html_class(trim($skip_class));
 
 		$this->compile_and_store_rules($output);
 
@@ -477,6 +492,30 @@ XBox 360";
 			$compiled['replacements'][$key] = implode('&nbsp;', $replacement_parts);
 		}
 
+		// Trojtečka: ... → …
+		if ('on' === ($settings['ellipsis'] ?? '')) {
+			$compiled['matches']['ellipsis'] = '/\.\.\.(?!\.)/u';
+			$compiled['replacements']['ellipsis'] = '…';
+		}
+
+		// Paragraf: § číslo → §&nbsp;číslo
+		if ('on' === ($settings['paragraph_sign'] ?? '')) {
+			$compiled['matches']['paragraph'] = '/§ (\d)/u';
+			$compiled['replacements']['paragraph'] = '§&nbsp;$1';
+		}
+
+		// En-dash s mezerami: " - " → " – "
+		if ('on' === ($settings['em_dash'] ?? '')) {
+			$compiled['matches']['dash_spaced'] = '/ - /u';
+			$compiled['replacements']['dash_spaced'] = ' – ';
+			// Rozmezí čísel bez mezer: 10-20 → 10–20
+			$compiled['matches']['dash_numbers'] = '/(\d)-(\d)/u';
+			$compiled['replacements']['dash_numbers'] = '$1–$2';
+		}
+
+		// České uvozovky jsou zpracovávány přímo v texturize(), ne přes compiled rules,
+		// protože potřebují stavový kontext (otevírací vs. zavírací).
+
 		update_option(self::COMPILED_OPTION, $compiled, false);
 
 		update_option('zalomeni_matches', $compiled['matches'], false);
@@ -508,12 +547,23 @@ XBox 360";
 						<strong><?php echo esc_html($this->get_plugin_version()); ?></strong>
 						<span><?php echo esc_html__('Verze pluginu', 'sw-zalomeni'); ?></span>
 					</div>
+					<span class="swz-hero-status swz-hero-status--<?php echo $is_operational ? 'active' : 'inactive'; ?>">
+						<span class="swz-hero-status__dot"></span>
+						<?php echo $is_operational ? esc_html__('Platná licence', 'sw-zalomeni') : esc_html__('Licence chybí', 'sw-zalomeni'); ?>
+					</span>
 				</div>
 			</div>
 
-			<?php if (!empty($_GET['swz_license_message'])) : ?>
-				<div class="notice notice-success"><p><?php echo esc_html(sanitize_text_field((string) $_GET['swz_license_message'])); ?></p></div>
-			<?php endif; ?>
+			<div class="swz-notices-area">
+				<?php if (!empty($_GET['swz_license_message'])) : ?>
+					<div class="notice notice-success"><p><?php echo esc_html(sanitize_text_field((string) $_GET['swz_license_message'])); ?></p></div>
+				<?php endif; ?>
+				<?php if (!$can_edit_settings) : ?>
+					<div class="notice notice-warning"><p><?php echo esc_html__('Plugin momentálně nemá platnou licenci. Nastavení zůstává pouze pro čtení a zalamování řádků se na webu neprovádí.', 'sw-zalomeni'); ?></p></div>
+				<?php endif; ?>
+			</div>
+
+			<div class="swz-main-content">
 
 			<div class="swz-card swz-card--licence">
 				<div class="swz-card__head">
@@ -563,19 +613,15 @@ XBox 360";
 				<?php endif; ?>
 			</div>
 
-			<?php if (!$can_edit_settings) : ?>
-				<div class="notice notice-warning"><p><?php echo esc_html__('Plugin momentálně nemá platnou licenci. Nastavení zůstává pouze pro čtení a zalamování řádků se na webu neprovádí.', 'sw-zalomeni'); ?></p></div>
-			<?php endif; ?>
-
 			<form method="post" action="options.php" class="swz-form <?php echo $can_edit_settings ? '' : 'is-readonly'; ?>">
 				<?php settings_fields(self::OPTION_GROUP); ?>
 
 				<fieldset <?php disabled(!$can_edit_settings); ?>>
 					<div class="swz-grid">
+
 						<div class="swz-card">
 							<h2><?php echo esc_html__('Jednopísmenná slova a zkratky', 'sw-zalomeni'); ?></h2>
 							<p class="swz-intro"><?php echo esc_html__('Typické české případy, kdy nechcete nechat krátké slovo viset na konci řádku.', 'sw-zalomeni'); ?></p>
-
 							<?php $this->render_checkbox_with_list('prepositions', __('Předložky', 'sw-zalomeni'), __('Vkládat pevnou mezeru za vybrané předložky.', 'sw-zalomeni'), $settings); ?>
 							<?php $this->render_checkbox_with_list('conjunctions', __('Spojky', 'sw-zalomeni'), __('Vkládat pevnou mezeru za vybrané spojky.', 'sw-zalomeni'), $settings); ?>
 							<?php $this->render_checkbox_with_list('abbreviations', __('Zkratky', 'sw-zalomeni'), __('Vkládat pevnou mezeru za vybrané zkratky.', 'sw-zalomeni'), $settings); ?>
@@ -584,26 +630,60 @@ XBox 360";
 						<div class="swz-card">
 							<h2><?php echo esc_html__('Čísla, jednotky a měřítka', 'sw-zalomeni'); ?></h2>
 							<p class="swz-intro"><?php echo esc_html__('Ošetření typografických situací v číslech, měrných jednotkách a poměrech.', 'sw-zalomeni'); ?></p>
-
 							<?php $this->render_checkbox_with_list('between_number_and_unit', __('Jednotky a míry', 'sw-zalomeni'), __('Vkládat pevnou mezeru mezi číslo a jednotku.', 'sw-zalomeni'), $settings); ?>
 							<?php $this->render_checkbox('space_between_numbers', __('Mezery uprostřed čísel', 'sw-zalomeni'), __('Nahradit mezery mezi čísly pevnou mezerou, například v telefonních číslech.', 'sw-zalomeni'), $settings); ?>
 							<?php $this->render_checkbox('space_after_ordered_number', __('Řadové číslovky', 'sw-zalomeni'), __('Zabránit zalomení za řadovou číslovkou, například v datech.', 'sw-zalomeni'), $settings); ?>
 							<?php $this->render_checkbox('spaces_in_scales', __('Měřítka a poměry', 'sw-zalomeni'), __('Vkládat pevné mezery v zápisu typu 1 : 50 000.', 'sw-zalomeni'), $settings); ?>
 						</div>
 
+						<div class="swz-card">
+							<h2><?php echo esc_html__('Typografické znaky', 'sw-zalomeni'); ?></h2>
+							<p class="swz-intro"><?php echo esc_html__('Automatická náhrada běžných typografických chyb za správné znaky.', 'sw-zalomeni'); ?></p>
+							<?php $this->render_checkbox('czech_quotes', __('České uvozovky', 'sw-zalomeni'), __('Nahradit rovné uvozovky "text" za české „text".', 'sw-zalomeni'), $settings); ?>
+							<?php $this->render_checkbox('em_dash', __('Pomlčky', 'sw-zalomeni'), __('Nahradit " - " za " – " a "10-20" za "10–20".', 'sw-zalomeni'), $settings); ?>
+							<?php $this->render_checkbox('ellipsis', __('Trojtečka', 'sw-zalomeni'), __('Nahradit tři tečky "..." za typografický znak "…".', 'sw-zalomeni'), $settings); ?>
+							<?php $this->render_checkbox('paragraph_sign', __('Znak paragrafu', 'sw-zalomeni'), __('Vkládat pevnou mezeru za § před číslem (§ 42 → § 42).', 'sw-zalomeni'), $settings); ?>
+						</div>
+
+						<div class="swz-card">
+							<h2><?php echo esc_html__('Pokročilé', 'sw-zalomeni'); ?></h2>
+							<p class="swz-intro"><?php echo esc_html__('Rozšíření působení pluginu a výjimky.', 'sw-zalomeni'); ?></p>
+							<?php $this->render_checkbox('apply_to_shortcodes', __('Aplikovat na výstup shortcodů', 'sw-zalomeni'), __('Pravidla se aplikují i na HTML vygenerované shortcody. Může způsobit konflikty s některými pluginy – otestujte.', 'sw-zalomeni'), $settings); ?>
+							<div class="swz-field swz-field--text">
+								<label class="swz-toggle__label" for="sw_zalomeni_skip_css_class"><?php echo esc_html__('Výjimka přes CSS třídu', 'sw-zalomeni'); ?></label>
+								<p class="description" style="margin-bottom:6px"><?php echo esc_html__('Elementy s touto třídou plugin přeskočí.', 'sw-zalomeni'); ?></p>
+								<input type="text" id="sw_zalomeni_skip_css_class" name="<?php echo esc_attr(self::OPTION_NAME); ?>[skip_css_class]" value="<?php echo esc_attr($settings['skip_css_class'] ?? 'no-zalomeni'); ?>" class="regular-text" />
+							</div>
+						</div>
+
 						<div class="swz-card swz-card--full">
 							<h2><?php echo esc_html__('Vlastní výrazy', 'sw-zalomeni'); ?></h2>
 							<p class="swz-intro"><?php echo esc_html__('Každý výraz vložte na samostatný řádek. Pokud obsahuje více slov, mezery uvnitř budou nahrazeny pevnými mezerami.', 'sw-zalomeni'); ?></p>
-
 							<label class="screen-reader-text" for="sw_zalomeni_custom_terms"><?php echo esc_html__('Vlastní výrazy', 'sw-zalomeni'); ?></label>
 							<textarea
 								name="<?php echo esc_attr(self::OPTION_NAME); ?>[custom_terms]"
 								id="sw_zalomeni_custom_terms"
-								rows="10"
+								rows="8"
 								class="large-text code"
 								placeholder="iPhone 17&#10;Windows 12&#10;Playstation 5"
 							><?php echo esc_textarea($this->get_admin_custom_terms_value($settings)); ?></textarea>
-							<p class="description"><?php echo esc_html__('Volitelné. Každý výraz pište na samostatný řádek. Pro pokročilejší použití lze zadat i jednoduchý regex vzor, například iPhone \d. Znak \d znamená jednu číslici 0–9.', 'sw-zalomeni'); ?></p>
+							<p class="description"><?php echo esc_html__('Volitelné. Každý výraz pište na samostatný řádek. Podporuje jednoduchý regex, např. iPhone \d.', 'sw-zalomeni'); ?></p>
+						</div>
+
+						<div class="swz-card swz-card--full swz-card--preview">
+							<h2><?php echo esc_html__('Živý náhled', 'sw-zalomeni'); ?></h2>
+							<p class="swz-intro"><?php echo esc_html__('Zadejte text a okamžitě uvidíte, jak ho plugin upraví. Pevné mezery jsou zvýrazněny.', 'sw-zalomeni'); ?></p>
+							<div class="swz-preview-wrap">
+								<div class="swz-preview-col">
+									<label class="swz-preview-label"><?php echo esc_html__('Vstup', 'sw-zalomeni'); ?></label>
+									<textarea id="swz-preview-input" rows="5" class="large-text" placeholder="<?php echo esc_attr__('Např: v lese u potoka, iPhone 15 Pro za 35 000 Kč...', 'sw-zalomeni'); ?>"></textarea>
+								</div>
+								<div class="swz-preview-col">
+									<label class="swz-preview-label"><?php echo esc_html__('Výsledek', 'sw-zalomeni'); ?></label>
+									<div id="swz-preview-output" class="swz-preview-output"><span class="swz-preview-placeholder"><?php echo esc_html__('Výsledek se zobrazí zde…', 'sw-zalomeni'); ?></span></div>
+								</div>
+							</div>
+							<p id="swz-preview-status" class="swz-preview-status"></p>
 						</div>
 
 					</div>
@@ -613,6 +693,8 @@ XBox 360";
 					<?php submit_button(__('Uložit nastavení', 'sw-zalomeni'), 'primary', 'submit', false, $can_edit_settings ? array() : array('disabled' => 'disabled')); ?>
 				</div>
 			</form>
+
+			</div><!-- /.swz-main-content -->
 		</div>
 		<?php
 	}
@@ -795,6 +877,27 @@ XBox 360";
 		return $data;
 	}
 
+	public function handle_ajax_preview() {
+		check_ajax_referer('sw_zalomeni_preview', 'nonce');
+		if (!current_user_can('manage_options')) {
+			wp_send_json_error('forbidden');
+		}
+
+		$text = wp_unslash((string) ($_POST['text'] ?? ''));
+		$text = wp_kses($text, array());
+
+		if (mb_strlen($text) > 2000) {
+			$text = mb_substr($text, 0, 2000);
+		}
+
+		$result = $this->texturize($text);
+
+		wp_send_json_success(array(
+			'original' => $text,
+			'result'   => $result,
+		));
+	}
+
 	public function handle_verify_license() {
 		if (!current_user_can('manage_options')) {
 			wp_die('Zakázáno.', 'Zakázáno', array('response' => 403));
@@ -847,10 +950,15 @@ XBox 360";
 		?>
 		<div class="swz-field">
 			<label class="swz-toggle" for="<?php echo esc_attr($id); ?>">
-				<input type="checkbox" name="<?php echo esc_attr($name); ?>" id="<?php echo esc_attr($id); ?>" value="on" <?php checked($checked); ?> />
-				<span class="swz-toggle__label"><?php echo esc_html($label); ?></span>
+				<span class="swz-toggle-wrap">
+					<input type="checkbox" name="<?php echo esc_attr($name); ?>" id="<?php echo esc_attr($id); ?>" value="on" <?php checked($checked); ?> />
+					<span class="swz-toggle-track"></span>
+				</span>
+				<span class="swz-field__body">
+					<span class="swz-toggle__label"><?php echo esc_html($label); ?></span>
+					<p class="description"><?php echo esc_html($description); ?></p>
+				</span>
 			</label>
-			<p class="description"><?php echo esc_html($description); ?></p>
 		</div>
 		<?php
 	}
@@ -887,6 +995,8 @@ XBox 360";
 			return $text;
 		}
 
+		$settings = $this->get_settings();
+
 		$output = '';
 		$segments = preg_split('/(<[^>]+>|\[[^\]]+\])/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
 		if (!is_array($segments)) {
@@ -908,6 +1018,11 @@ XBox 360";
 			if (!$is_tag_or_shortcode && empty($tag_stack) && empty($shortcode_stack)) {
 				$segment = preg_replace($compiled['matches'], $compiled['replacements'], $segment);
 				$segment = preg_replace($compiled['matches'], $compiled['replacements'], $segment);
+
+				// České uvozovky: " → „ (otevírací) nebo " (zavírací)
+				if ('on' === ($settings['czech_quotes'] ?? '')) {
+					$segment = $this->apply_czech_quotes($segment);
+				}
 			} else {
 				$this->pushpop_texturize_element($segment, $tag_stack, $no_texturize_tags, '<', '>');
 				$this->pushpop_texturize_element($segment, $shortcode_stack, $no_texturize_shortcodes, '[', ']');
@@ -917,6 +1032,27 @@ XBox 360";
 		}
 
 		return $output;
+	}
+
+	private function apply_czech_quotes(string $text): string {
+		// Otevírací uvozovka: " předcházena mezerou, začátkem, závorkou, nebo nic
+		// Zavírací uvozovka: " následována mezerou, interpunkcí, koncem
+		// Průchod znak po znaku přes preg_replace_callback pro správné párování
+		$open  = '„';
+		$close = '"';
+		$depth = 0;
+
+		$result = preg_replace_callback('/"/', static function($m) use ($open, $close, &$depth) {
+			if ($depth === 0) {
+				$depth = 1;
+				return $open;
+			} else {
+				$depth = 0;
+				return $close;
+			}
+		}, $text);
+
+		return is_string($result) ? $result : $text;
 	}
 
 	private function pushpop_texturize_element($text, &$stack, $disabled_elements, $opening, $closing) {
