@@ -16,6 +16,19 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
+if (file_exists(__DIR__ . '/plugin-update-checker/plugin-update-checker.php')) {
+	require __DIR__ . '/plugin-update-checker/plugin-update-checker.php';
+
+	$swUpdateChecker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		'https://github.com/paveltravnicek/sw-zalomeni/',
+		__FILE__,
+		'sw-zalomeni'
+	);
+
+	$swUpdateChecker->setBranch('main');
+	$swUpdateChecker->getVcsApi()->enableReleaseAssets('/\.zip$/i');
+}
+
 final class SW_Zalomeni_Plugin {
 	const OPTION_GROUP = 'sw_zalomeni_settings_group';
 	const OPTION_NAME = 'sw_zalomeni_settings';
